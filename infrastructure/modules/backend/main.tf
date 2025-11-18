@@ -8,14 +8,13 @@ resource "azurerm_kubernetes_cluster" "main" {
   kubernetes_version  = "1.28"
 
   default_node_pool {
-    name                = "default"
-    vm_size             = var.aks_vm_size
-    os_disk_size_gb     = 30
-    type                = "VirtualMachineScaleSets"
-    min_count           = var.aks_min_node_count
-    max_count           = var.aks_max_node_count
-    vnet_subnet_id      = var.subnet_id
-    enable_auto_scaling = true
+    name            = "default"
+    vm_size         = var.aks_vm_size
+    os_disk_size_gb = 30
+    type            = "VirtualMachineScaleSets"
+    min_count       = var.aks_min_node_count
+    max_count       = var.aks_max_node_count
+    vnet_subnet_id  = var.subnet_id
   }
 
   # Network Profile
