@@ -1,0 +1,22 @@
+# Docker Compose para executar Terraform em container
+# Útil para equipes que não querem instalar ferramentas localmente
+#
+# Uso:
+#   docker-compose -f docker-compose.terraform.yml run --rm terraform deploy
+#   docker-compose -f docker-compose.terraform.yml run --rm terraform destroy
+
+version: '3.8'
+
+services:
+  terraform:
+    build:
+      context: .
+      dockerfile: Dockerfile.terraform
+    volumes:
+      - .:/workspace
+      - ~/.azure:/root/.azure # Cache de autenticação Azure
+    environment:
+      - ARM_SUBSCRIPTION_ID=${ARM_SUBSCRIPTION_ID:-}
+      - ARM_TENANT_ID=${ARM_TENANT_ID:-}
+    working_dir: /workspace
+    command: [ "help" ]

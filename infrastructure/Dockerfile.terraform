@@ -1,0 +1,27 @@
+# Dockerfile opcional para executar Terraform em container
+# Útil para equipes que não querem instalar Terraform localmente
+
+FROM hashicorp/terraform:latest
+
+# Instalar Azure CLI
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    && pip3 install --upgrade pip \
+    && pip3 install azure-cli
+
+# Instalar kubectl
+RUN apk add --no-cache curl \
+    && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && chmod +x kubectl \
+    && mv kubectl /usr/local/bin/
+
+WORKDIR /workspace
+
+# Script de entrada
+COPY scripts/docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["help"]
+
