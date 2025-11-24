@@ -6,6 +6,7 @@
     "dev": "concurrently -n backend,frontend -c green,cyan \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
     "build": "npm --prefix backend run build && npm --prefix frontend run build",
     "start": "docker-compose up -d",
     "stop": "docker-compose down",
