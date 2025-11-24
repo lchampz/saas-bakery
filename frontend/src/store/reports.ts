@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { StateCreator } from 'zustand';
 import { api } from '../lib/api';
 import type { Product, Consumption } from '../types';
 
@@ -15,7 +16,7 @@ type ReportsState = {
 	fetchHistory: () => Promise<void>;
 };
 
-export const useReportsStore = create<ReportsState>((set) => ({
+const reportsStoreCreator: StateCreator<ReportsState> = (set) => ({
 	stock: [],
 	capability: [],
 	history: [],
@@ -51,4 +52,6 @@ export const useReportsStore = create<ReportsState>((set) => ({
 			set({ error: error?.response?.data?.message ?? 'Failed to fetch history', loading: false });
 		}
 	},
-})); 
+});
+
+export const useReportsStore = create<ReportsState>(reportsStoreCreator); 

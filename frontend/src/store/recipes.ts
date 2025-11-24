@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { StateCreator } from 'zustand';
 import { api } from '../lib/api';
 import type { Recipe } from '../types';
 
@@ -13,7 +14,7 @@ type RecipesState = {
 	prepare: (id: string, qty?: number) => Promise<void>;
 };
 
-export const useRecipesStore = create<RecipesState>((set, get) => ({
+const recipesStoreCreator: StateCreator<RecipesState> = (set, get) => ({
 	items: [],
 	loading: false,
 	error: null,
@@ -43,4 +44,6 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
 		await api.post(`/recipes/${id}/prepare`, null, { params: { qty } });
 		await get().list();
 	},
-})); 
+});
+
+export const useRecipesStore = create<RecipesState>(recipesStoreCreator); 

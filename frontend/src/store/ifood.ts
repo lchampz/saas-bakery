@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { StateCreator } from 'zustand';
 import { IFoodService } from '../lib/ifood';
 import type { 
   IFoodOrder, 
@@ -40,7 +41,7 @@ type IFoodState = {
   getIntegrationStatus: () => Promise<void>;
 };
 
-export const useIFoodStore = create<IFoodState>((set, get) => ({
+const ifoodStoreCreator: StateCreator<IFoodState> = (set, get) => ({
   // Estado inicial
   integrationConfig: null,
   isIntegrationActive: false,
@@ -52,7 +53,7 @@ export const useIFoodStore = create<IFoodState>((set, get) => ({
   topProducts: [],
 
   // Configurar integração
-  async configureIntegration(config) {
+  async configureIntegration(config: IFoodIntegrationConfig) {
     set({ integrationStatus: 'loading' });
     try {
       await IFoodService.configureIntegration(config);
@@ -89,7 +90,7 @@ export const useIFoodStore = create<IFoodState>((set, get) => ({
   },
 
   // Obter pedidos
-  async getOrders(params) {
+  async getOrders(params?: { limit?: number }) {
     set({ ordersLoading: true });
     try {
       const orders = await IFoodService.getOrders(params);
@@ -101,17 +102,17 @@ export const useIFoodStore = create<IFoodState>((set, get) => ({
   },
 
   // Obter pedido específico
-  async getOrderById(orderId) {
+  async getOrderById(orderId: string) {
     const order = await IFoodService.getOrderById(orderId);
     set({ currentOrder: order });
   },
 
   // Confirmar pedido
-  async confirmOrder(orderId, estimatedTime) {
+  async confirmOrder(orderId: string, estimatedTime?: number) {
     await IFoodService.confirmOrder(orderId, estimatedTime);
     // Atualizar pedido na lista
     const orders = get().orders;
-    const updatedOrders = orders.map(order => 
+    const updatedOrders = orders.map((order: IFoodOrder) => 
       order.id === orderId 
         ? { ...order, status: 'CONFIRMED' as const }
         : order
@@ -175,4 +176,6 @@ export const useIFoodStore = create<IFoodState>((set, get) => ({
       throw new Error('Erro ao obter status da integração');
     }
   },
-}));
+});
+
+export const useIFoodStore = create<IFoodState>(ifoodStoreCreator);

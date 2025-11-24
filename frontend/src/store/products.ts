@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { StateCreator } from 'zustand';
 import { api } from '../lib/api';
 import type { Product } from '../types';
 
@@ -12,7 +13,7 @@ type ProductsState = {
 	remove: (id: string) => Promise<void>;
 };
 
-export const useProductsStore = create<ProductsState>((set, get) => ({
+const productsStoreCreator: StateCreator<ProductsState> = (set, get) => ({
 	items: [],
 	loading: false,
 	error: null,
@@ -38,4 +39,6 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
 		await api.delete(`/products/${id}`);
 		await get().list();
 	},
-})); 
+});
+
+export const useProductsStore = create<ProductsState>(productsStoreCreator); 

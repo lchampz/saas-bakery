@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { StateCreator } from 'zustand';
 import { api, setAuthToken } from '../lib/api';
 import type { User } from '../types';
 
@@ -19,12 +20,12 @@ if (initialToken) {
 	setAuthToken(initialToken);
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+const authStoreCreator: StateCreator<AuthState> = (set, get) => ({
 	token: initialToken,
 	user: null,
 	loading: false,
 	error: null,
-	async login(email, password) {
+	async login(email: string, password: string) {
 		set({ loading: true, error: null });
 		try {
 			const response = await api.post('/auth/login', { email, password });
@@ -48,7 +49,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 			throw new Error(errorMessage);
 		}
 	},
-	async register(email, password) {
+	async register(email: string, password: string) {
 		set({ loading: true, error: null });
 		try {
 			await api.post('/auth/register', { email, password });
@@ -78,4 +79,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 			set({ token: null, user: null });
 		}
 	},
-})); 
+});
+
+export const useAuthStore = create<AuthState>(authStoreCreator); 
