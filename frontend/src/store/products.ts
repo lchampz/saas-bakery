@@ -26,15 +26,15 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
 			set({ error: error?.response?.data?.message ?? 'Falha ao buscar produtos', loading: false });
 		}
 	},
-	async create(payload) {
+	async create(payload: { name: string; quantity: number }) {
 		await api.post('/products', payload);
 		await get().list();
 	},
-	async update(id, payload) {
+	async update(id: string, payload: Partial<Pick<Product, 'name' | 'quantity'>>) {
 		await api.put(`/products/${id}`, payload);
 		await get().list();
 	},
-	async remove(id) {
+	async remove(id: string) {
 		await api.delete(`/products/${id}`);
 		await get().list();
 	},

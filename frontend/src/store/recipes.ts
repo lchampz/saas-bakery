@@ -27,19 +27,19 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
 			set({ error: error?.response?.data?.message ?? 'Failed to fetch recipes', loading: false });
 		}
 	},
-	async create(payload) {
+	async create(payload: { name: string; ingredients: Array<{ productId: string; amount: number }> }) {
 		await api.post('/recipes', payload);
 		await get().list();
 	},
-	async update(id, payload) {
+	async update(id: string, payload: Partial<{ name: string; ingredients: Array<{ productId: string; amount: number }> }>) {
 		await api.put(`/recipes/${id}`, payload);
 		await get().list();
 	},
-	async remove(id) {
+	async remove(id: string) {
 		await api.delete(`/recipes/${id}`);
 		await get().list();
 	},
-	async prepare(id, qty = 1) {
+	async prepare(id: string, qty: number = 1) {
 		await api.post(`/recipes/${id}/prepare`, null, { params: { qty } });
 		await get().list();
 	},

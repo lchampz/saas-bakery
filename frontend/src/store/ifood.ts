@@ -120,11 +120,11 @@ export const useIFoodStore = create<IFoodState>((set, get) => ({
   },
 
   // Cancelar pedido
-  async cancelOrder(orderId, reason) {
+  async cancelOrder(orderId: string, reason: string) {
     await IFoodService.cancelOrder(orderId, reason);
     // Atualizar pedido na lista
     const orders = get().orders;
-    const updatedOrders = orders.map(order => 
+    const updatedOrders = orders.map((order: IFoodOrder) => 
       order.id === orderId 
         ? { ...order, status: 'CANCELLED' as const }
         : order
@@ -133,11 +133,11 @@ export const useIFoodStore = create<IFoodState>((set, get) => ({
   },
 
   // Despachar pedido
-  async dispatchOrder(orderId) {
+  async dispatchOrder(orderId: string) {
     await IFoodService.dispatchOrder(orderId);
     // Atualizar pedido na lista
     const orders = get().orders;
-    const updatedOrders = orders.map(order => 
+    const updatedOrders = orders.map((order: IFoodOrder) => 
       order.id === orderId 
         ? { ...order, status: 'DISPATCHED' as const }
         : order
@@ -152,7 +152,7 @@ export const useIFoodStore = create<IFoodState>((set, get) => ({
   },
 
   // Obter produtos mais vendidos
-  async getTopProducts(params) {
+  async getTopProducts(params?: { limit?: number }) {
     const products = await IFoodService.getTopProducts(params);
     set({ topProducts: products });
   },
