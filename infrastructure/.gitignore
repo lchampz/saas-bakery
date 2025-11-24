@@ -5,6 +5,7 @@
 *.tfstate.*
 *.tfplan
 *.tfvars
+# Manter terraform.tfvars.example se existir
 !terraform.tfvars.example
 
 # Arquivos de backup

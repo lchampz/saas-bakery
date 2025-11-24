@@ -34,7 +34,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
 			if (ingredients) {
 				await tx.recipeIngredient.deleteMany({ where: { recipeId: id } });
 				await tx.recipeIngredient.createMany({
-					data: ingredients.map((i) => ({ recipeId: id, productId: i.productId, amount: i.amount })),
+					data: ingredients.map((i) => ({ recipeId: id as string, productId: i.productId, amount: i.amount })),
 				});
 			}
 			return tx.recipe.findUnique({ where: { id }, include: { ingredients: true } });

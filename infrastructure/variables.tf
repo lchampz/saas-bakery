@@ -39,69 +39,28 @@ variable "cost_center" {
   default     = "Ecommerce"
 }
 
-# SQL Database
-variable "sql_admin_login" {
-  description = "Usuário administrador do SQL Database"
+# PostgreSQL Database
+variable "postgres_admin_login" {
+  description = "Usuário administrador do PostgreSQL"
   type        = string
-  default     = "sqladmin"
+  default     = "postgresadmin"
   sensitive   = true
 }
 
-variable "sql_admin_password" {
-  description = "Senha do administrador do SQL Database"
+variable "postgres_admin_password" {
+  description = "Senha do administrador do PostgreSQL"
   type        = string
   sensitive   = true
 }
 
-# Cosmos DB
-variable "cosmos_db_throughput" {
-  description = "Throughput inicial do Cosmos DB (RUs)"
-  type        = number
-  default     = 400
-}
-
-variable "cosmos_db_max_throughput" {
-  description = "Throughput máximo do Cosmos DB com autoscale (RUs)"
-  type        = number
-  default     = 4000
-}
-
-# AKS Configuration
-variable "aks_node_count" {
-  description = "Número inicial de nodes no AKS"
-  type        = number
-  default     = 2
-}
-
-variable "aks_vm_size" {
-  description = "Tamanho das VMs do AKS"
+variable "postgres_sku_name" {
+  description = "SKU do PostgreSQL Flexible Server (ex: B_Standard_B1ms para dev, GP_Standard_D2s_v3 para produção)"
   type        = string
-  default     = "Standard_B2s"
+  default     = "B_Standard_B1ms" # Burstable, 1 vCore, 2GB RAM - econômico para dev
 }
 
-variable "aks_min_node_count" {
-  description = "Número mínimo de nodes no AKS (Cluster Autoscaler)"
-  type        = number
-  default     = 1
+variable "common_tags" {
+  description = "Tags comuns para todos os recursos"
+  type        = map(string)
+  default     = {}
 }
-
-variable "aks_max_node_count" {
-  description = "Número máximo de nodes no AKS (Cluster Autoscaler)"
-  type        = number
-  default     = 10
-}
-
-# Perfil econômico (para Students/dev): desabilita App Gateway e AKS, desativa Redis, SQL mais barato
-variable "economy_mode" {
-  description = "Ativa perfil econômico (desabilita AKS e App Gateway; Redis off; SQL SKU barato)"
-  type        = bool
-  default     = false
-}
-
-# SKU do SQL (permitir usar Basic/S0 em economy)
-variable "sql_sku_name" {
-  description = "SKU do Azure SQL Database (ex: GP_S_Gen5_2, S0, Basic)"
-  type        = string
-  default     = "GP_S_Gen5_2"
-}
-

@@ -1,154 +1,160 @@
-# 🚀 Infraestrutura Azure - Guia de Deploy
+# 🚀 Infraestrutura Minimalista - Fratelli
 
-Este guia foi criado para facilitar o deploy da infraestrutura no Azure, mesmo para equipes não técnicas.
+Infraestrutura simplificada e econômica para hospedar apenas o **banco de dados PostgreSQL** e o **backend** no Azure.
 
-## 📋 Pré-requisitos
+## 📋 O que é criado
 
-Antes de começar, você precisa ter:
+Esta infraestrutura cria apenas o essencial:
 
-1. **Conta Azure** com permissões de administrador
-2. **Azure CLI** instalado ([Instalar Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli))
-3. **Terraform** instalado ([Instalar Terraform](https://www.terraform.io/downloads))
-4. **kubectl** instalado (para gerenciar o AKS) ([Instalar kubectl](https://kubernetes.io/docs/tasks/tools/))
+- ✅ **PostgreSQL Flexible Server** - Banco de dados (B_Standard_B1ms - econômico)
+- ✅ **App Service (Linux)** - Backend Node.js (B1 - Basic tier, mais barato)
+- ✅ **Key Vault** - Armazenamento seguro de secrets
+- ✅ **Resource Group** - Grupo de recursos
 
-## 🎯 Passo a Passo Rápido
+**Total estimado: ~$30-50/mês** (dependendo do uso)
 
-### 1. Login no Azure
+## 🚀 Setup Automático
 
-```bash
-az login
-```
+### Pré-requisitos
 
-### 2. Configurar Variáveis
+1. **Azure CLI instalado**: [Instalar Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli)
+2. **Terraform instalado**: [Instalar Terraform](https://www.terraform.io/downloads)
+3. **Login no Azure**: `az login`
 
-Copie o arquivo de exemplo e preencha com suas informações:
-
-```bash
-cp terraform.tfvars.example terraform.tfvars
-```
-
-**📖 Precisa obter suas credenciais Azure?** Consulte o guia: [COMO_OBTER_CREDENCIAIS.md](COMO_OBTER_CREDENCIAIS.md)
-
-**Resumo rápido:**
-```bash
-# Fazer login
-az login
-
-# Obter Subscription ID
-az account show --query id -o tsv
-
-# Obter Tenant ID
-az account show --query tenantId -o tsv
-```
-
-Edite o arquivo `terraform.tfvars` com suas configurações.
-
-### 3. Deploy Automático
-
-Execute o script de deploy:
+### Executar Setup
 
 ```bash
-./scripts/deploy.sh
+cd infrastructure
+./setup.sh
 ```
 
-Isso irá:
-- ✅ Criar o grupo de recursos
-- ✅ Configurar todos os serviços Azure
-- ✅ Aplicar configurações de segurança
-- ✅ Configurar escalabilidade automática
-- ✅ Aplicar tags de governança
+O script irá:
+- ✅ Verificar autenticação Azure
+- ✅ Ler configurações do `terraform.tfvars`
+- ✅ Inicializar Terraform
+- ✅ Validar configuração
+- ✅ Mostrar plano de execução
+- ✅ Aplicar mudanças
+- ✅ Mostrar informações da infraestrutura criada
 
-### 4. Remover Infraestrutura
+## ⚙️ Configuração
 
-Para remover tudo quando não precisar mais:
+Edite o arquivo `terraform.tfvars` com suas configurações:
+
+```hcl
+project_name = "fratelli"
+environment  = "dev"
+location     = "brazilsouth"
+
+# Credenciais Azure
+subscription_id = "seu-subscription-id"
+tenant_id       = "seu-tenant-id"
+
+# PostgreSQL
+postgres_admin_login    = "postgresadmin"
+postgres_admin_password = "SuaSenhaSegura123!"
+postgres_sku_name       = "B_Standard_B1ms" # Econômico para dev
+```
+
+## 📊 Outputs
+
+Após o setup, você terá acesso a:
+
+- **PostgreSQL Server FQDN**: Para conexão do banco
+- **Backend App Service URL**: URL do backend hospedado
+- **Key Vault URI**: Para acessar secrets (DATABASE_URL)
+- **Resource Group**: Nome do grupo de recursos
+
+## 💰 Custos
+
+### Estimativa mensal (dev):
+
+- **PostgreSQL B_Standard_B1ms**: ~$15-20/mês
+- **App Service B1 (Basic)**: ~$13-15/mês
+- **Key Vault Standard**: ~$0.03/10k operações (praticamente grátis)
+- **Storage (backup PostgreSQL)**: ~$2-5/mês
+
+**Total: ~$30-40/mês** para ambiente de desenvolvimento
+
+## 🔧 Deploy do Backend
+
+Após o setup, faça deploy do backend:
 
 ```bash
-./scripts/destroy.sh
+# Obter informações
+cd infrastructure
+terraform output backend_app_service_url
+
+# Deploy (exemplo com Azure CLI)
+az webapp deploy \
+    --resource-group $(terraform output -raw resource_group_name) \
+    --name $(terraform output -raw backend_app_service_name) \
+    --src-path ../backend/dist.zip \
+    --type zip
 ```
 
-## 📁 Estrutura de Arquivos
+## 🔐 Acessar DATABASE_URL
+
+A `DATABASE_URL` está armazenada no Key Vault:
+
+```bash
+# Via Azure CLI
+az keyvault secret show \
+    --vault-name $(terraform output -raw key_vault_name) \
+    --name database-url \
+    --query value -o tsv
+
+# Ou configure no App Service
+az webapp config appsettings set \
+    --resource-group $(terraform output -raw resource_group_name) \
+    --name $(terraform output -raw backend_app_service_name) \
+    --settings DATABASE_URL="@Microsoft.KeyVault(SecretUri=https://$(terraform output -raw key_vault_name).vault.azure.net/secrets/database-url/)"
+```
+
+## 🗑️ Remover Infraestrutura
+
+Para remover tudo:
+
+```bash
+cd infrastructure
+terraform destroy -auto-approve
+```
+
+## 📝 Estrutura de Arquivos
 
 ```
 infrastructure/
-├── README.md                 # Este arquivo
-├── main.tf                   # Configuração principal
-├── variables.tf              # Definição de variáveis
-├── outputs.tf                # Saídas do Terraform
-├── terraform.tfvars.example  # Exemplo de configuração
-├── modules/                  # Módulos Terraform
-│   ├── frontend/            # Camada de apresentação
-│   ├── backend/             # Camada de lógica de negócios
-│   ├── data/                # Camada de dados
-│   ├── security/            # Configurações de segurança
-│   └── networking/          # Rede e Application Gateway
-└── scripts/                  # Scripts de automação
-    ├── deploy.sh            # Script de deploy
-    ├── destroy.sh           # Script de remoção
-    └── validate.sh          # Validação de configuração
+├── main.tf              # Configuração principal (tudo em um arquivo)
+├── variables.tf         # Variáveis
+├── outputs.tf          # Outputs
+├── terraform.tfvars    # Configurações (NÃO commitar)
+├── setup.sh            # Script de setup automático
+└── README.md           # Este arquivo
 ```
-
-## 🔧 Configuração Detalhada
-
-### Variáveis Principais
-
-No arquivo `terraform.tfvars`, você precisa configurar:
-
-- **project_name**: Nome do projeto (ex: "fratelli")
-- **environment**: Ambiente (dev, staging, production)
-- **location**: Região do Azure (ex: "brazilsouth")
-- **subscription_id**: ID da sua assinatura Azure
-- **tenant_id**: ID do seu tenant Azure AD
-
-### Serviços Criados
-
-A infraestrutura cria automaticamente:
-
-#### 🎨 Camada de Apresentação
-- Azure App Service (Frontend)
-- Application Gateway com WAF
-
-#### ⚙️ Camada de Lógica
-- Azure Kubernetes Service (AKS)
-- Azure Functions
-
-#### 💾 Camada de Dados
-- Azure SQL Database
-- Azure Cosmos DB
-- Azure Cache for Redis
-
-#### 🛡️ Segurança
-- Azure Key Vault
-- Microsoft Defender for Cloud
-- Azure AD B2C (configuração manual necessária)
-
-## 📊 Monitoramento e Custos
-
-Após o deploy, você pode:
-
-1. **Monitorar custos**: Acesse o Azure Portal → Cost Management
-2. **Ver recomendações**: Azure Portal → Advisor
-3. **Monitorar segurança**: Azure Portal → Defender for Cloud
 
 ## ⚠️ Importante
 
-- **Custos**: Esta infraestrutura gera custos no Azure. Monitore regularmente.
-- **Backup**: Configure backups dos bancos de dados após o deploy.
-- **Domínio**: Configure seu domínio personalizado após o deploy inicial.
+- **NUNCA** commite o arquivo `terraform.tfvars` (contém senhas)
+- O arquivo está no `.gitignore`
+- Monitore os custos no Azure Portal
+- Para produção, considere usar SKUs maiores
 
-## 🆘 Suporte
+## 🆘 Troubleshooting
 
-Em caso de problemas:
+### Erro de autenticação
+```bash
+az login
+az account set --subscription "seu-subscription-id"
+```
 
-1. Verifique os logs: `terraform plan` e `terraform apply`
-2. Consulte a documentação do Azure
-3. Verifique se todas as variáveis estão preenchidas corretamente
+### Ver logs do backend
+```bash
+az webapp log tail \
+    --resource-group $(terraform output -raw resource_group_name) \
+    --name $(terraform output -raw backend_app_service_name)
+```
 
-## 📝 Próximos Passos
-
-Após o deploy bem-sucedido:
-
-1. Configure o Azure AD B2C manualmente no portal
-2. Configure domínios personalizados
-3. Configure alertas de custo no Azure Cost Management
-4. Configure backups automáticos dos bancos de dados
-
+### Verificar status dos recursos
+```bash
+az resource list --resource-group $(terraform output -raw resource_group_name) -o table
+```

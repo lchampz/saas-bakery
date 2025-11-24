@@ -8,64 +8,41 @@ output "resource_group_location" {
   value       = azurerm_resource_group.main.location
 }
 
-# Frontend
-output "app_service_name" {
-  description = "Nome do App Service (Frontend)"
-  value       = module.frontend.app_service_name
+# Database
+output "postgres_server_fqdn" {
+  description = "FQDN do PostgreSQL Server"
+  value       = azurerm_postgresql_flexible_server.main.fqdn
 }
 
-output "app_service_url" {
-  description = "URL do App Service"
-  value       = module.frontend.app_service_url
+output "postgres_database_name" {
+  description = "Nome do banco de dados PostgreSQL (padrão: postgres)"
+  value       = "postgres"
 }
 
-# Backend
-output "aks_cluster_name" {
-  description = "Nome do cluster AKS"
-  value       = module.backend.aks_cluster_name
-}
-
-output "aks_kube_config" {
-  description = "Configuração kubectl para o AKS"
-  value       = module.backend.aks_kube_config
+output "database_url" {
+  description = "URL de conexão do banco de dados (DATABASE_URL) - Sensível"
+  value       = "postgresql://${var.postgres_admin_login}:${var.postgres_admin_password}@${azurerm_postgresql_flexible_server.main.fqdn}:5432/postgres?sslmode=require"
   sensitive   = true
 }
 
-# Data
-output "sql_server_fqdn" {
-  description = "FQDN do SQL Server"
-  value       = module.data.sql_server_fqdn
+# Backend
+output "backend_app_service_name" {
+  description = "Nome do App Service (Backend)"
+  value       = azurerm_linux_web_app.backend.name
 }
 
-output "cosmos_db_account_name" {
-  description = "Nome da conta do Cosmos DB"
-  value       = module.data.cosmos_db_account_name
-}
-
-output "redis_cache_hostname" {
-  description = "Hostname do Redis Cache"
-  value       = module.data.redis_cache_hostname
+output "backend_app_service_url" {
+  description = "URL do App Service (Backend)"
+  value       = "https://${azurerm_linux_web_app.backend.default_hostname}"
 }
 
 # Security
 output "key_vault_name" {
   description = "Nome do Key Vault"
-  value       = module.security.key_vault_name
+  value       = azurerm_key_vault.main.name
 }
 
 output "key_vault_uri" {
   description = "URI do Key Vault"
-  value       = module.security.key_vault_uri
+  value       = azurerm_key_vault.main.vault_uri
 }
-
-# Networking
-output "app_gateway_public_ip" {
-  description = "IP público do Application Gateway"
-  value       = module.networking.app_gateway_public_ip
-}
-
-output "app_gateway_fqdn" {
-  description = "FQDN do Application Gateway"
-  value       = module.networking.app_gateway_fqdn
-}
-
