@@ -76,7 +76,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Timeout para requisições longas (especialmente IA)
-app.use((req, res, next) => {
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
 	// Aumentar timeout para rotas de IA
 	if (req.path.startsWith('/ai-recipes')) {
 		req.setTimeout(180000); // 3 minutos

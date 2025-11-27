@@ -1,0 +1,10 @@
+# Ignorar backend e outros diretórios na Vercel (exceto frontend)
+backend/
+infrastructure/
+ollama/
+scripts/
+*.md
+docker-compose.yml
+.gitignore
+.vercelignore
+

@@ -272,8 +272,8 @@ router.get('/analytics', requireAuth, async (req: Request, res: Response) => {
 		}).filter(r => r.popularity > 0).sort((a, b) => b.popularity - a.popularity).slice(0, 5);
 
 		// Análise de custos (baseado em consumptions)
-		const totalCost = consumptions.reduce((sum, c) => {
-			const product = products.find(p => p.id === c.productId);
+		const totalCost = consumptions.reduce((sum: number, c: { productId: string; amount: number }) => {
+			const product = products.find((p: { id: string }) => p.id === c.productId);
 			return sum + (product?.pricePerGram ? c.amount * product.pricePerGram : 0);
 		}, 0);
 
