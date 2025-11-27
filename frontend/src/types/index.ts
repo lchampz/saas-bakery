@@ -9,7 +9,13 @@ export type Product = {
 	createdAt: string;
 };
 
-export type RecipeIngredient = { id: string; recipeId: string; productId: string; amount: number };
+export type RecipeIngredient = { 
+	id: string; 
+	recipeId: string; 
+	productId: string; 
+	amount: number;
+	product?: Product | null;
+};
 
 export type Recipe = {
 	id: string;

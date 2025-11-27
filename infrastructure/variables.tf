@@ -64,3 +64,58 @@ variable "common_tags" {
   type        = map(string)
   default     = {}
 }
+
+# Ollama VM
+variable "ollama_vm_size" {
+  description = "Tamanho da VM para Ollama. Tente: Standard_B1ms, Standard_A1_v2, Standard_A2_v2, ou Standard_D2s_v3"
+  type        = string
+  default     = "Standard_B1ms" # 1 vCPU, 2GB RAM - mais provável de estar disponível
+}
+
+variable "ollama_vm_admin_username" {
+  description = "Usuário administrador da VM Ollama"
+  type        = string
+  default     = "ollamaadmin"
+}
+
+variable "ollama_vm_ssh_public_key" {
+  description = "Chave SSH pública para acesso à VM Ollama"
+  type        = string
+  sensitive   = true
+}
+
+variable "ollama_vm_disk_size" {
+  description = "Tamanho do disco da VM Ollama em GB"
+  type        = number
+  default     = 64
+}
+
+variable "ollama_model" {
+  description = "Modelo Ollama a ser baixado (ex: llama3.2, mistral)"
+  type        = string
+  default     = "llama3.2"
+}
+
+variable "create_vnet_for_ollama" {
+  description = "Criar uma nova VNet para Ollama ou usar uma existente"
+  type        = bool
+  default     = true
+}
+
+variable "existing_vnet_name" {
+  description = "Nome da VNet existente (se create_vnet_for_ollama = false)"
+  type        = string
+  default     = ""
+}
+
+variable "ollama_use_public_ip" {
+  description = "Usar IP público para VM Ollama (false = apenas IP privado, mais barato)"
+  type        = bool
+  default     = false # Por padrão, usar apenas IP privado para reduzir custos
+}
+
+variable "ollama_vm_zone" {
+  description = "Zona de disponibilidade para VM Ollama (1, 2, 3 ou null para auto-seleção). Se houver problemas de capacidade, tente especificar uma zona."
+  type        = number
+  default     = null # null = Azure escolhe automaticamente
+}

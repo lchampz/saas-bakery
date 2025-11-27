@@ -31,6 +31,11 @@ output "backend_app_service_name" {
   value       = azurerm_linux_web_app.backend.name
 }
 
+output "backend_app_name" {
+  description = "Nome do App Service (Backend) - alias"
+  value       = azurerm_linux_web_app.backend.name
+}
+
 output "backend_app_service_url" {
   description = "URL do App Service (Backend)"
   value       = "https://${azurerm_linux_web_app.backend.default_hostname}"

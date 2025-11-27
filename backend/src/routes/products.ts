@@ -39,11 +39,15 @@ router.get('/', requireAuth, paginationMiddleware(), async (req: Request, res: R
 
 router.post('/', requireAuth, validateProduct, handleValidationErrors, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const { name, quantity } = req.body as { name: string; quantity?: number };
+		const { name, quantity, pricePerGram, unit } = req.body as { name: string; quantity?: number; pricePerGram?: number; unit?: string };
 		
 		const created = await prisma.product.create({ 
-			data: { name, quantity: quantity ?? 0 },
-			select: { id: true, name: true, quantity: true, createdAt: true }
+			data: { 
+				name, 
+				quantity: quantity ?? 0,
+				pricePerGram: pricePerGram ?? null,
+				unit: unit ?? 'g'
+			}
 		});
 		
 		res.status(201).json({
@@ -59,12 +63,18 @@ router.post('/', requireAuth, validateProduct, handleValidationErrors, async (re
 router.put('/:id', requireAuth, validateProduct, handleValidationErrors, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { id } = req.params;
-		const { name, quantity } = req.body as { name?: string; quantity?: number };
+		const { name, quantity, pricePerGram, unit } = req.body as { name?: string; quantity?: number; pricePerGram?: number; unit?: string };
+		
+		// Construir objeto de atualização apenas com campos fornecidos
+		const updateData: { name?: string; quantity?: number; pricePerGram?: number; unit?: string } = {};
+		if (name !== undefined) updateData.name = name;
+		if (quantity !== undefined) updateData.quantity = quantity;
+		if (pricePerGram !== undefined) updateData.pricePerGram = pricePerGram;
+		if (unit !== undefined) updateData.unit = unit;
 		
 		const updated = await prisma.product.update({ 
 			where: { id }, 
-			data: { name, quantity },
-			select: { id: true, name: true, quantity: true, updatedAt: true }
+			data: updateData
 		});
 		
 		res.json({

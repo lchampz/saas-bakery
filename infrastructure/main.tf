@@ -30,7 +30,9 @@ resource "azurerm_resource_group" "main" {
 
 # Key Vault (mínimo - apenas para secrets)
 resource "azurerm_key_vault" "main" {
-  name                       = "kv-${var.project_name}-${var.environment}-${substr(md5(azurerm_resource_group.main.name), 0, 8)}"
+  # Key Vault names must be 3-24 chars, alphanumeric and dashes only, globally unique
+  # Format: kv{proj}{env}{hash} (max 24 chars: kv=2 + proj=6 + env=3 + hash=8 = 19 chars)
+  name                       = "kv${substr(replace("${var.project_name}", "-", ""), 0, 6)}${substr(var.environment, 0, 3)}${substr(md5(azurerm_resource_group.main.name), 0, 8)}"
   location                   = var.location
   resource_group_name        = azurerm_resource_group.main.name
   tenant_id                  = data.azurerm_client_config.current.tenant_id
@@ -75,14 +77,17 @@ resource "azurerm_postgresql_flexible_server" "main" {
   administrator_password = var.postgres_admin_password
   sku_name               = var.postgres_sku_name
   storage_mb             = 32768 # 32GB mínimo
-  backup_retention_days  = 7
+  backup_retention_days  = 7     # Reduzir para 7 dias (mínimo) para economizar
 
-  # Configuração de alta disponibilidade (apenas produção)
+  # Configuração de alta disponibilidade (apenas produção com SKU General Purpose)
+  # Nota: Alta disponibilidade requer SKU mínimo GP_Standard_D2s_v3 e não está disponível para SKUs Burstable (B_Standard_*)
+  # SKUs Burstable (B_Standard_*) não suportam alta disponibilidade
   dynamic "high_availability" {
-    for_each = var.environment == "production" ? [1] : []
+    for_each = var.environment == "production" && can(regex("^GP_Standard", var.postgres_sku_name)) ? [1] : []
     content {
-      mode                      = "ZoneRedundant"
-      standby_availability_zone = 2
+      mode = "ZoneRedundant"
+      # Zona 1 é geralmente a mais disponível em brazilsouth
+      standby_availability_zone = 1
     }
   }
 

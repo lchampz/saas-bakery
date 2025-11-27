@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, memo } from 'react';
 import { useProductsStore } from '../store/products';
 import { Button } from '../components/ui/button';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
+import { ProductCardSkeleton } from '../components/ui/skeleton';
 import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { useForm, type Resolver, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
@@ -10,6 +11,7 @@ import { toast } from 'sonner';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { Modal } from '../components/ui/modal';
+import { Pagination } from '../components/ui/pagination';
 import { useDebounce } from '../hooks/useDebounce';
 
 const unitOptions = ['mg', 'g', 'kg', 'ml', 'l', 'un'] as const;
@@ -42,7 +44,7 @@ function formatBestUnit(grams: number): Converted {
 }
 
 function ProductsPage() {
-	const { items, list, create, update, remove, loading, error } = useProductsStore();
+	const { items, pagination, list, create, update, remove, loading, error } = useProductsStore();
 	const resolver = zodResolver(productSchema) as Resolver<ProductForm>;
 	const { register, handleSubmit, reset, formState: { errors } } = useForm<ProductForm>({
 		resolver,
@@ -51,18 +53,34 @@ function ProductsPage() {
 	const [search, setSearch] = useState('');
 	const [open, setOpen] = useState(false);
 	const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+	const [currentPage, setCurrentPage] = useState(1);
+	const [pageLimit, setPageLimit] = useState(10);
 	
 	// Debounce search para melhor performance
 	const debouncedSearch = useDebounce(search, 300);
 
 	useEffect(() => {
-		list().catch(() => toast.error('Falha ao carregar produtos'));
-	}, [list]);
+		list(currentPage, pageLimit).catch(() => toast.error('Falha ao carregar produtos'));
+	}, [list, currentPage, pageLimit]);
+
+	// Resetar para primeira página quando buscar
+	useEffect(() => {
+		if (debouncedSearch) {
+			setCurrentPage(1);
+		}
+	}, [debouncedSearch]);
 
 	const onSubmit: SubmitHandler<ProductForm> = async (data) => {
 		try {
-			const grams = toGrams(data.quantity, data.unit);
-			await create({ name: data.name, quantity: grams });
+			// Se for unidade, manter a quantidade como está (1 em 1)
+			// Caso contrário, converter para gramas
+			const quantity = data.unit === 'un' ? data.quantity : toGrams(data.quantity, data.unit);
+			await create({ 
+				name: data.name, 
+				quantity,
+				unit: data.unit,
+				pricePerGram: data.pricePerGram
+			});
 			toast.success('Produto adicionado com sucesso');
 			reset({ name: '', unit: 'g', quantity: 0 });
 			setOpen(false);
@@ -138,9 +156,10 @@ function ProductsPage() {
 			</div>
 
 			{loading && (
-				<div className="flex items-center justify-center py-12">
-					<LoadingSpinner size="lg" />
-					<span className="ml-3 text-lg text-gray-600">Carregando produtos...</span>
+				<div className="grid lg:grid-cols-3 md:grid-cols-2 gap-6">
+					{Array.from({ length: 6 }).map((_, i) => (
+						<ProductCardSkeleton key={i} />
+					))}
 				</div>
 			)}
 
@@ -215,9 +234,10 @@ function ProductsPage() {
 			{/* Lista de Produtos */}
 			{!loading && (
 				<div className="grid lg:grid-cols-3 md:grid-cols-2 gap-6">
-					{filtered.map((p: { id: string; name: string; quantity: number; pricePerGram?: number }) => {
-						const conv = formatBestUnit(p.quantity);
-						const isLowStock = p.quantity < 100;
+					{filtered.map((p: { id: string; name: string; quantity: number; unit?: string; pricePerGram?: number }) => {
+						const isUnit = p.unit === 'un';
+						const conv = isUnit ? { grams: p.quantity, best: `${p.quantity.toFixed(0)} un` } : formatBestUnit(p.quantity);
+						const isLowStock = isUnit ? p.quantity < 1 : p.quantity < 100;
 						
 						return (
 							<div key={p.id} className="card card-hover p-6">
@@ -247,7 +267,7 @@ function ProductsPage() {
 								<div className="space-y-3">
 									<div className="flex justify-between items-center text-sm">
 										<span className="text-gray-600">Estoque base:</span>
-										<span className="font-medium text-gray-900">{conv.grams.toFixed(0)}g</span>
+										<span className="font-medium text-gray-900">{isUnit ? `${p.quantity.toFixed(0)} un` : `${conv.grams.toFixed(0)}g`}</span>
 									</div>
 									{p.pricePerGram && (
 										<div className="flex justify-between items-center text-sm">
@@ -262,30 +282,32 @@ function ProductsPage() {
 											size="sm"
 											onClick={async () => { 
 												try { 
-													await update(p.id, { quantity: p.quantity + 100 }); 
-													toast.success('Estoque atualizado (+100g)');
+													const increment = isUnit ? 1 : 100;
+													await update(p.id, { quantity: p.quantity + increment }); 
+													toast.success(`Estoque atualizado (+${increment}${isUnit ? ' un' : 'g'})`);
 												} catch { 
 													toast.error('Erro ao atualizar estoque'); 
 												} 
 											}}
 											className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium"
 										>
-											+100g
+											{isUnit ? '+1 un' : '+100g'}
 										</Button>
 										<Button 
 											variant="ghost" 
 											size="sm"
 											onClick={async () => { 
 												try { 
-													await update(p.id, { quantity: Math.max(0, p.quantity - 100) }); 
-													toast.success('Estoque atualizado (-100g)');
+													const decrement = isUnit ? 1 : 100;
+													await update(p.id, { quantity: Math.max(0, p.quantity - decrement) }); 
+													toast.success(`Estoque atualizado (-${decrement}${isUnit ? ' un' : 'g'})`);
 												} catch { 
 													toast.error('Erro ao atualizar estoque'); 
 												} 
 											}}
 											className="flex-1 bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-2 rounded-lg text-sm font-medium"
 										>
-											-100g
+											{isUnit ? '-1 un' : '-100g'}
 										</Button>
 									</div>
 									
@@ -332,6 +354,21 @@ function ProductsPage() {
 						</Button>
 					)}
 				</div>
+			)}
+
+			{/* Paginação */}
+			{pagination && !search && (
+				<Pagination
+					pagination={pagination}
+					onPageChange={(page) => {
+						setCurrentPage(page);
+						window.scrollTo({ top: 0, behavior: 'smooth' });
+					}}
+					onLimitChange={(limit) => {
+						setPageLimit(limit);
+						setCurrentPage(1);
+					}}
+				/>
 			)}
 
 			<ConfirmDialog

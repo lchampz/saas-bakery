@@ -11,10 +11,12 @@ model User {
     id           String   @id @default(cuid())
     email        String   @unique
     passwordHash String
+    role         String   @default("operator")
     createdAt    DateTime @default(now())
     updatedAt    DateTime @updatedAt
 
     @@index([email])
+    @@index([role])
 }
 
 model Product {
@@ -22,23 +24,32 @@ model Product {
     name         String
     quantity     Float              @default(0)
     pricePerGram Float?             @default(0)
+    unit         String             @default("g")
+    minLevel     Float?             @default(100)
+    supplierId   String?
     createdAt    DateTime           @default(now())
     updatedAt    DateTime           @updatedAt
     deletedAt    DateTime?
     items        RecipeIngredient[]
     consumptions Consumption[]
+    purchases    PurchaseItem[]
+    supplier     Supplier?          @relation(fields: [supplierId], references: [id])
 
     @@index([name])
     @@index([deletedAt])
+    @@index([supplierId])
 }
 
 model Recipe {
-    id          String             @id @default(cuid())
-    name        String
-    createdAt   DateTime           @default(now())
-    updatedAt   DateTime           @updatedAt
-    deletedAt   DateTime?
-    ingredients RecipeIngredient[]
+    id           String             @id @default(cuid())
+    name         String
+    totalCost    Float?             @default(0)
+    servingSize  Int?               @default(1)
+    instructions String?
+    createdAt    DateTime           @default(now())
+    updatedAt    DateTime           @updatedAt
+    deletedAt    DateTime?
+    ingredients  RecipeIngredient[]
 
     @@index([name])
     @@index([deletedAt])
@@ -50,7 +61,7 @@ model RecipeIngredient {
     productId String
     amount    Float
 
-    recipe  Recipe  @relation(fields: [recipeId], references: [id])
+    recipe  Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
     product Product @relation(fields: [productId], references: [id])
 
     @@unique([recipeId, productId])
@@ -67,4 +78,53 @@ model Consumption {
 
     @@index([productId])
     @@index([createdAt])
+}
+
+model Supplier {
+    id        String     @id @default(cuid())
+    name      String
+    contact   String?
+    email     String?
+    phone     String?
+    address   String?
+    products  Product[]
+    purchases Purchase[]
+    createdAt DateTime   @default(now())
+    updatedAt DateTime   @updatedAt
+    deletedAt DateTime?
+
+    @@index([name])
+    @@index([deletedAt])
+}
+
+model Purchase {
+    id            String         @id @default(cuid())
+    supplierId    String?
+    totalAmount   Float          @default(0)
+    invoiceNumber String?
+    purchaseDate  DateTime       @default(now())
+    notes         String?
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+    items         PurchaseItem[]
+    supplier      Supplier?      @relation(fields: [supplierId], references: [id])
+
+    @@index([supplierId])
+    @@index([purchaseDate])
+}
+
+model PurchaseItem {
+    id         String   @id @default(cuid())
+    purchaseId String
+    productId  String
+    quantity   Float
+    unitPrice  Float
+    totalPrice Float
+    createdAt  DateTime @default(now())
+
+    purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+    product  Product  @relation(fields: [productId], references: [id])
+
+    @@index([purchaseId])
+    @@index([productId])
 }

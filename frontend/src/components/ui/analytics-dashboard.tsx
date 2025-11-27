@@ -16,8 +16,9 @@ import {
   Area
 } from 'recharts';
 import { Button } from './button';
-// import { LoadingSpinner } from './loading-spinner';
+import { LoadingSpinner } from './loading-spinner';
 import { Alert } from './alert';
+import { Skeleton, MetricCardSkeleton } from './skeleton';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -26,53 +27,46 @@ import {
   RefreshCw,
   AlertTriangle
 } from 'lucide-react';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { toast } from 'sonner';
 
 interface AnalyticsDashboardProps {
   className?: string;
 }
 
 export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) {
-  // const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Dados mockados para demonstração
-  const mockSalesData = [
-    { date: '2024-01-01', revenue: 1200, orders: 15, products: 8 },
-    { date: '2024-01-02', revenue: 1800, orders: 22, products: 12 },
-    { date: '2024-01-03', revenue: 1500, orders: 18, products: 10 },
-    { date: '2024-01-04', revenue: 2200, orders: 28, products: 15 },
-    { date: '2024-01-05', revenue: 1900, orders: 24, products: 13 },
-    { date: '2024-01-06', revenue: 2500, orders: 32, products: 18 },
-    { date: '2024-01-07', revenue: 2100, orders: 26, products: 14 },
-  ];
+  const daysMap = { '7d': 7, '30d': 30, '90d': 90 };
+  const days = daysMap[timeRange];
 
-  const mockInventoryData = [
-    { name: 'Farinha de Trigo', quantity: 5000, minLevel: 1000, status: 'ok' },
-    { name: 'Açúcar Refinado', quantity: 3000, minLevel: 500, status: 'ok' },
-    { name: 'Chocolate em Pó', quantity: 1500, minLevel: 200, status: 'ok' },
-    { name: 'Ovos', quantity: 120, minLevel: 50, status: 'warning' },
-    { name: 'Leite', quantity: 2000, minLevel: 300, status: 'ok' },
-    { name: 'Manteiga', quantity: 2000, minLevel: 400, status: 'ok' },
-    { name: 'Creme de Leite', quantity: 1500, minLevel: 200, status: 'ok' },
-    { name: 'Leite Condensado', quantity: 1000, minLevel: 150, status: 'ok' },
-    { name: 'Coco Ralado', quantity: 800, minLevel: 100, status: 'ok' },
-    { name: 'Amêndoas', quantity: 1000, minLevel: 200, status: 'ok' },
-  ];
+  // Usar React Query para gerenciar o estado
+  const { data: analytics, isLoading: loading, refetch, isRefetching } = useAnalytics(days);
 
-  const mockRecipePerformance = [
-    { name: 'Bolo de Chocolate', popularity: 85, profitMargin: 65 },
-    { name: 'Cupcake de Baunilha', popularity: 78, profitMargin: 70 },
-    { name: 'Torta de Morango', popularity: 72, profitMargin: 60 },
-    { name: 'Brigadeiro Gourmet', popularity: 90, profitMargin: 80 },
-    { name: 'Pão de Mel', popularity: 68, profitMargin: 55 },
-  ];
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+      toast.success('Analytics atualizado');
+    } catch {
+      toast.error('Erro ao atualizar analytics');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
-  const mockCostAnalysis = [
-    { category: 'Ingredientes', amount: 4500, percentage: 60 },
-    { category: 'Mão de Obra', amount: 1800, percentage: 24 },
-    { category: 'Embalagem', amount: 600, percentage: 8 },
-    { category: 'Outros', amount: 600, percentage: 8 },
-  ];
+  const handleTimeRangeChange = (range: '7d' | '30d' | '90d') => {
+    if (range !== timeRange) {
+      setTimeRange(range);
+    }
+  };
+
+  // Usar dados reais ou fallback para dados vazios
+  const salesData = analytics?.salesData || [];
+  const inventoryData = analytics?.inventoryData || [];
+  const recipePerformance = analytics?.recipePerformance || [];
+  const costAnalysis = analytics?.costAnalysis || [];
 
   const COLORS = ['#8B5E3C', '#D2B79C', '#EAD9C2', '#F6F0E6', '#68472B'];
 
@@ -90,13 +84,63 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
     return { status: 'ok', color: 'text-green-600', bg: 'bg-green-100' };
   };
 
-  const lowStockItems = mockInventoryData.filter(item => 
-    item.quantity <= item.minLevel * 1.5
+  const lowStockItems = inventoryData.filter(item => 
+    item.status === 'critical' || item.status === 'warning'
   );
 
-  const totalRevenue = mockSalesData.reduce((sum, day) => sum + day.revenue, 0);
-  const totalOrders = mockSalesData.reduce((sum, day) => sum + day.orders, 0);
-  const averageOrderValue = totalRevenue / totalOrders;
+  const totalRevenue = analytics?.totalRevenue || 0;
+  const totalOrders = analytics?.totalOrders || 0;
+  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  if (loading && !analytics) {
+    return (
+      <div className="space-y-8">
+        {/* Header Skeleton */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton width={300} height={32} />
+              <Skeleton width={400} height={20} />
+            </div>
+            <div className="flex gap-3">
+              <Skeleton width={120} height={36} rounded="xl" />
+              <Skeleton width={40} height={36} rounded="xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* Métricas Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <MetricCardSkeleton key={i} />
+          ))}
+        </div>
+
+        {/* Charts Skeleton */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          <div className="card p-6">
+            <Skeleton width={200} height={24} className="mb-4" />
+            <Skeleton width="100%" height={300} rounded="lg" />
+          </div>
+          <div className="card p-6">
+            <Skeleton width={200} height={24} className="mb-4" />
+            <Skeleton width="100%" height={300} rounded="lg" />
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          <div className="card p-6">
+            <Skeleton width={200} height={24} className="mb-4" />
+            <Skeleton width="100%" height={300} rounded="lg" />
+          </div>
+          <div className="card p-6">
+            <Skeleton width={200} height={24} className="mb-4" />
+            <Skeleton width="100%" height={300} rounded="lg" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-8 ${className}`}>
@@ -117,7 +161,7 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
                   key={range}
                   variant={timeRange === range ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setTimeRange(range)}
+                  onClick={() => handleTimeRangeChange(range)}
                   className="px-4 py-2 text-sm rounded-lg"
                 >
                   {range}
@@ -125,8 +169,14 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
               ))}
             </div>
             
-            <Button onClick={() => {}} variant="outline" size="sm" className="rounded-xl">
-              <RefreshCw className="w-4 h-4" />
+            <Button 
+              onClick={handleRefresh} 
+              variant="outline" 
+              size="sm" 
+              className="rounded-xl"
+              disabled={isRefreshing || isRefetching || loading}
+            >
+              <RefreshCw className={`w-4 h-4 ${(isRefreshing || isRefetching) ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
@@ -194,7 +244,7 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
             <div className="flex-1">
               <p className="text-sm text-gray-600 font-medium">Produtos em Estoque</p>
               <p className="text-2xl font-bold text-gray-900">
-                {mockInventoryData.length}
+                {analytics?.totalProducts || 0}
               </p>
               <div className="flex items-center gap-1 mt-1">
                 <AlertTriangle className="w-3 h-3 text-orange-600" />
@@ -232,7 +282,7 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
             <h3 className="text-lg font-semibold text-gray-900">Receita e Pedidos</h3>
           </div>
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={mockSalesData}>
+            <AreaChart data={salesData.length > 0 ? salesData : [{ date: new Date().toISOString().split('T')[0], revenue: 0, orders: 0, products: 0 }]}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey="date" 
@@ -278,7 +328,7 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
             <h3 className="text-lg font-semibold text-gray-900">Performance das Receitas</h3>
           </div>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={mockRecipePerformance}>
+            <BarChart data={recipePerformance.length > 0 ? recipePerformance : [{ name: 'Nenhuma receita', popularity: 0, profitMargin: 0 }]}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis yAxisId="popularity" orientation="left" />
@@ -317,16 +367,20 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={mockCostAnalysis}
+                data={costAnalysis.length > 0 ? costAnalysis : [{ category: 'Sem dados', amount: 0, percentage: 100 }]}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percentage }) => `${name} (${percentage}%)`}
+                label={(entry: any) => {
+                  const data = entry as { name: string; percentage?: number };
+                  const percentage = data.percentage ?? 0;
+                  return `${data.name} (${percentage}%)`;
+                }}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="amount"
               >
-                {mockCostAnalysis.map((entry, index) => (
+                {(costAnalysis.length > 0 ? costAnalysis : [{ category: 'Sem dados', amount: 0, percentage: 100 }]).map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -341,7 +395,7 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
             Status do Estoque
           </h3>
           <div className="space-y-3">
-            {mockInventoryData.slice(0, 6).map((item) => {
+            {(inventoryData.length > 0 ? inventoryData.slice(0, 6) : []).map((item) => {
               const status = getInventoryStatus(item);
               const percentage = Math.min((item.quantity / (item.minLevel * 3)) * 100, 100);
               

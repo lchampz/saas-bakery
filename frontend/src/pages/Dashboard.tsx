@@ -2,14 +2,31 @@ import React, { useEffect, useMemo } from 'react';
 import { useReportsStore } from '../store/reports';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
 import { AnalyticsDashboard } from '../components/ui/analytics-dashboard';
+import { MetricCardSkeleton, ListItemSkeleton } from '../components/ui/skeleton';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
 	const { stock, capability, history, fetchStock, fetchCapability, fetchHistory, loading } = useReportsStore();
 
 	useEffect(() => {
-		Promise.all([fetchStock(), fetchCapability(), fetchHistory()]).catch(() => toast.error('Falha ao carregar dashboard'));
-	}, [fetchStock, fetchCapability, fetchHistory]);
+		let cancelled = false;
+		
+		const loadData = async () => {
+			try {
+				await Promise.all([fetchStock(), fetchCapability(), fetchHistory()]);
+			} catch {
+				if (!cancelled) {
+					toast.error('Falha ao carregar dashboard');
+				}
+			}
+		};
+
+		loadData();
+
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	// Calcular métricas
 	const metrics = useMemo(() => {
@@ -32,9 +49,37 @@ export default function Dashboard() {
 
 	if (loading) {
 		return (
-			<div className="flex items-center justify-center py-12">
-				<LoadingSpinner size="lg" />
-				<span className="ml-3 text-lg">Carregando dashboard...</span>
+			<div className="space-y-8">
+				{/* Header Skeleton */}
+				<div className="flex items-center justify-between">
+					<div className="space-y-2">
+						<div className="h-9 w-48 bg-gray-200 rounded-lg animate-pulse" />
+						<div className="h-5 w-64 bg-gray-200 rounded-lg animate-pulse" />
+					</div>
+					<div className="h-10 w-48 bg-gray-200 rounded-xl animate-pulse" />
+				</div>
+
+				{/* Analytics Skeleton */}
+				<div className="card p-6">
+					<div className="h-96 bg-gray-200 rounded-lg animate-pulse" />
+				</div>
+
+				{/* Métricas Skeleton */}
+				<section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+					{Array.from({ length: 4 }).map((_, i) => (
+						<MetricCardSkeleton key={i} />
+					))}
+				</section>
+
+				{/* Detalhes Skeleton */}
+				<section className="grid lg:grid-cols-3 gap-6">
+					{Array.from({ length: 3 }).map((_, i) => (
+						<div key={i} className="card p-6">
+							<div className="h-6 w-40 bg-gray-200 rounded-lg animate-pulse mb-4" />
+							<ListItemSkeleton count={5} />
+						</div>
+					))}
+				</section>
 			</div>
 		);
 	}

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma.js';
@@ -8,7 +8,7 @@ import { CustomError } from '../middleware/errorHandler.js';
 
 export const router = Router();
 
-router.post('/register', authLimiter, validateAuth, handleValidationErrors, async (req: Request, res: Response, next) => {
+router.post('/register', authLimiter, validateAuth, handleValidationErrors, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { email, password } = req.body as { email: string; password: string };
 		
@@ -33,7 +33,7 @@ router.post('/register', authLimiter, validateAuth, handleValidationErrors, asyn
 	}
 });
 
-router.post('/login', authLimiter, validateAuth, handleValidationErrors, async (req: Request, res: Response, next) => {
+router.post('/login', authLimiter, validateAuth, handleValidationErrors, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { email, password } = req.body as { email: string; password: string };
 		

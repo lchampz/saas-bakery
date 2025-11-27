@@ -19,5 +19,5 @@ npx prisma migrate deploy || echo "⚠️  Aviso: Migrações podem já estar ap
 
 # Iniciar servidor
 echo "✅ Iniciando servidor Node.js na porta ${PORT:-3000}..."
-exec node server.js
+exec node dist/server.js
 

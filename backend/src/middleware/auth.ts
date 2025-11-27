@@ -1,15 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../lib/prisma.js';
 import { CustomError } from './errorHandler.js';
 
 export interface AuthRequest extends Request {
 	user?: {
 		id: string;
 		email: string;
+		role?: string;
 	};
 }
 
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
 	const auth = req.headers.authorization;
 	
 	if (!auth) {
@@ -20,9 +22,21 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
 	
 	try {
 		const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+		
+		// Buscar usuário para obter role
+		const user = await prisma.user.findUnique({
+			where: { id: decoded.sub },
+			select: { id: true, email: true, role: true }
+		});
+
+		if (!user) {
+			return next(new CustomError('Usuário não encontrado', 401));
+		}
+
 		req.user = {
-			id: decoded.sub,
-			email: decoded.email
+			id: user.id,
+			email: user.email,
+			role: user.role
 		};
 		next();
 	} catch (err) {
@@ -34,6 +48,18 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
 		}
 		return next(new CustomError('Erro na autenticação', 401));
 	}
+}
+
+export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+	if (!req.user) {
+		return next(new CustomError('Não autorizado', 401));
+	}
+
+	if (req.user.role !== 'admin') {
+		return next(new CustomError('Acesso negado. Apenas administradores podem realizar esta ação.', 403));
+	}
+
+	next();
 }
 
 export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction) {

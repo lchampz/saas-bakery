@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import logo from '../assets/logo.png';
 
 const loginSchema = z.object({
 	email: z.email('E-mail inválido'),
@@ -58,11 +59,9 @@ export default function LoginPage() {
 				<div className="hidden lg:block">
 					<div className="text-center space-y-8">
 						<div className="space-y-4">
-							<div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-2xl mx-auto animate-bounce-gentle">
-								🍫
-							</div>
+							
 							<div>
-								<h1 className="text-4xl font-bold text-gradient mb-2">Fratelli Cacau</h1>
+								<h1 className="text-4xl font-bold text-gradient mb-2 font-black">Confeitec</h1>
 								<p className="text-lg text-gray-600">Sabor artesanal, gestão eficiente</p>
 							</div>
 						</div>

@@ -7,10 +7,13 @@ import { Select } from '../components/ui/select';
 import { Modal } from '../components/ui/modal';
 import { RecipeCalculator } from '../components/ui/recipe-calculator';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
+import { RecipeCardSkeleton } from '../components/ui/skeleton';
+import { AIRecipeGenerator } from '../components/ui/ai-recipe-generator';
 import { useForm, type Resolver, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import { Sparkles, AlertTriangle, Lock } from 'lucide-react';
 
 const recipeSchema = z.object({
 	name: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
@@ -26,8 +29,10 @@ export default function RecipesPage() {
 	const { items, list, create, remove, prepare, loading } = useRecipesStore();
 	const { items: products, list: listProducts } = useProductsStore();
 	const [open, setOpen] = useState(false);
+	const [aiOpen, setAiOpen] = useState(false);
 	const [lines, setLines] = useState<Array<{ productId: string; amount: number }>>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const [stockChecks, setStockChecks] = useState<Record<string, { canPrepare: boolean; insufficientItems: Array<{ productName: string; needed: number; available: number }> }>>({});
 
 	const resolver = zodResolver(recipeSchema) as Resolver<RecipeForm>;
 	const { register, handleSubmit, reset, formState: { errors } } = useForm<RecipeForm>({
@@ -56,6 +61,39 @@ export default function RecipesPage() {
 		loadData();
 	}, [list, listProducts]);
 
+	// Verificar estoque de todas as receitas quando produtos ou receitas mudarem
+	useEffect(() => {
+		if (!isLoading && Array.isArray(items) && Array.isArray(products)) {
+			const checks: Record<string, { canPrepare: boolean; insufficientItems: Array<{ productName: string; needed: number; available: number }> }> = {};
+			
+			items.forEach((recipe: any) => {
+				const insufficientItems: Array<{ productName: string; needed: number; available: number }> = [];
+				
+				recipe.ingredients?.forEach((ing: any) => {
+					// Usar product do ingrediente (vindo do backend) ou buscar na lista como fallback
+					const product = ing.product || products.find((p: any) => p.id === ing.productId);
+					if (product) {
+						const needed = ing.amount; // Para 1 porção
+						if (product.quantity < needed) {
+							insufficientItems.push({
+								productName: product.name,
+								needed,
+								available: product.quantity
+							});
+						}
+					}
+				});
+				
+				checks[recipe.id] = {
+					canPrepare: insufficientItems.length === 0,
+					insufficientItems
+				};
+			});
+			
+			setStockChecks(checks);
+		}
+	}, [items, products, isLoading]);
+
 	const addLine = () => {
 		if (products.length === 0) {
 			toast.error('Nenhum produto disponível. Adicione produtos primeiro.');
@@ -83,6 +121,22 @@ export default function RecipesPage() {
 		}
 	};
 
+	const handleAIRecipeGenerated = async (recipe: {
+		name: string;
+		ingredients: Array<{ productId: string; amount: number }>;
+		instructions?: string;
+		servingSize?: number;
+	}) => {
+		try {
+			await create(recipe);
+			toast.success('Receita criada com sucesso!');
+			reset();
+			setLines([]);
+		} catch {
+			toast.error('Erro ao criar receita');
+		}
+	};
+
 	const onError = () => {
 		toast.error('Verifique os dados da receita');
 	};
@@ -95,26 +149,42 @@ export default function RecipesPage() {
 					<h1 className="text-3xl font-bold text-gray-900 mb-2">Receitas</h1>
 					<p className="text-gray-600">Gerencie suas receitas e ingredientes</p>
 				</div>
-				<Button 
-					onClick={() => {
-						if (products.length === 0) {
-							toast.error('Nenhum produto disponível. Adicione produtos primeiro.');
-							return;
-						}
-						reset();
-						setLines([{ productId: products[0]?.id ?? '', amount: 0 }]);
-						setOpen(true);
-					}}
-					className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
-				>
-					+ Nova Receita
-				</Button>
+				<div className="flex gap-3">
+					<Button 
+						onClick={() => setAiOpen(true)}
+						className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+					>
+						<Sparkles className="w-4 h-4 mr-2" />
+						Gerar com IA
+					</Button>
+					<Button 
+						onClick={() => {
+							if (products.length === 0) {
+								toast.error('Nenhum produto disponível. Adicione produtos primeiro.');
+								return;
+							}
+							reset();
+							setLines([{ productId: products[0]?.id ?? '', amount: 0 }]);
+							setOpen(true);
+						}}
+						className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+					>
+						+ Nova Receita
+					</Button>
+				</div>
 			</div>
 
 			{/* Calculadora de Receitas */}
 			<div className="mb-8">
 				<RecipeCalculator />
 			</div>
+
+			{/* Modal de Geração com IA */}
+			<AIRecipeGenerator
+				open={aiOpen}
+				onClose={() => setAiOpen(false)}
+				onRecipeGenerated={handleAIRecipeGenerated}
+			/>
 
 			{/* Modal de Criação */}
 			<Modal open={open} onClose={() => setOpen(false)} title="Criar Nova Receita">
@@ -198,75 +268,135 @@ export default function RecipesPage() {
 
 			{/* Lista de Receitas */}
 			{isLoading ? (
-				<div className="flex items-center justify-center py-12">
-					<LoadingSpinner size="lg" />
-					<span className="ml-3 text-lg text-gray-600">Carregando receitas...</span>
+				<div className="grid lg:grid-cols-2 gap-6">
+					{Array.from({ length: 4 }).map((_, i) => (
+						<RecipeCardSkeleton key={i} />
+					))}
 				</div>
 			) : (
 				<>
 					<div className="grid lg:grid-cols-2 gap-6">
-						{Array.isArray(items) && items.map((r) => (
-							<div key={r.id} className="card card-hover p-6">
-								<div className="flex items-start justify-between mb-4">
-									<div className="flex items-center gap-3">
-										<div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center text-white text-lg">
-											🍰
+						{Array.isArray(items) && items.map((r) => {
+							const stockCheck = stockChecks[r.id];
+							const canPrepare = stockCheck?.canPrepare ?? true;
+							const insufficientItems = stockCheck?.insufficientItems || [];
+							
+							return (
+								<div 
+									key={r.id} 
+									className={`card p-6 ${!canPrepare ? 'opacity-75 border-2 border-amber-200 bg-amber-50/30' : 'card-hover'}`}
+								>
+									<div className="flex items-start justify-between mb-4">
+										<div className="flex items-center gap-3 flex-1">
+											<div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg ${!canPrepare ? 'bg-amber-500' : 'bg-gradient-to-r from-purple-500 to-pink-600'}`}>
+												{!canPrepare ? <Lock className="w-5 h-5" /> : '🍰'}
+											</div>
+											<div className="flex-1">
+												<h3 className="text-lg font-semibold text-gray-900">{r.name}</h3>
+												<p className="text-sm text-gray-600">{r.ingredients.length} ingredientes</p>
+												{!canPrepare && (
+													<div className="mt-2 flex items-center gap-1 text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded">
+														<AlertTriangle className="w-3 h-3" />
+														<span>Estoque insuficiente</span>
+													</div>
+												)}
+											</div>
 										</div>
-										<div>
-											<h3 className="text-lg font-semibold text-gray-900">{r.name}</h3>
-											<p className="text-sm text-gray-600">{r.ingredients.length} ingredientes</p>
+										<div className="flex gap-2">
+											<Button 
+												variant="secondary" 
+												onClick={async () => { 
+													try { 
+														await prepare(r.id, 1); 
+														toast.success('Receita preparada com sucesso!'); 
+														// Recarregar produtos para atualizar estoque
+														await listProducts();
+													} catch (error: any) {
+														const insufficientItems = error?.response?.data?.insufficientItems || [];
+														if (insufficientItems.length > 0) {
+															const itemsList = insufficientItems.map((item: any) => 
+																`${item.productName} (necessário: ${item.needed}g, disponível: ${item.available}g)`
+															).join(', ');
+															toast.error(`Estoque insuficiente: ${itemsList}`);
+														} else {
+															toast.error(error?.response?.data?.message || 'Erro ao preparar receita');
+														}
+													} 
+												}}
+												disabled={!canPrepare || loading}
+												className={`px-3 py-1 rounded-lg text-sm ${
+													!canPrepare 
+														? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+														: 'bg-green-100 hover:bg-green-200 text-green-700'
+												}`}
+											>
+												{!canPrepare ? (
+													<>
+														<Lock className="w-3 h-3 mr-1 inline" />
+														Bloqueada
+													</>
+												) : (
+													'Preparar'
+												)}
+											</Button>
+											<Button 
+												variant="ghost" 
+												onClick={async () => { 
+													try { 
+														await remove(r.id); 
+														toast.success('Receita removida'); 
+													} catch { 
+														toast.error('Erro ao remover receita'); 
+													} 
+												}}
+												className="text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-lg text-sm"
+											>
+												Remover
+											</Button>
 										</div>
 									</div>
-									<div className="flex gap-2">
-										<Button 
-											variant="secondary" 
-											onClick={async () => { 
-												try { 
-													await prepare(r.id, 1); 
-													toast.success('Receita preparada com sucesso!'); 
-												} catch { 
-													toast.error('Erro ao preparar receita'); 
-												} 
-											}}
-											className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-lg text-sm"
-										>
-											Preparar
-										</Button>
-										<Button 
-											variant="ghost" 
-											onClick={async () => { 
-												try { 
-													await remove(r.id); 
-													toast.success('Receita removida'); 
-												} catch { 
-													toast.error('Erro ao remover receita'); 
-												} 
-											}}
-											className="text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-lg text-sm"
-										>
-											Remover
-										</Button>
+									
+									<div className="space-y-2">
+										<h4 className="text-sm font-medium text-gray-900 mb-2">Ingredientes:</h4>
+										<ul className="space-y-1">
+											{r.ingredients.map((i) => {
+												// Usar product do ingrediente (vindo do backend) ou buscar na lista como fallback
+												const product = i.product || (Array.isArray(products) ? products.find((p) => p.id === i.productId) : null);
+												const isInsufficient = insufficientItems.some(item => item.productName === product?.name);
+												const available = product?.quantity || 0;
+												const needed = i.amount;
+												
+												return (
+													<li 
+														key={i.id} 
+														className={`flex justify-between items-center text-sm p-2 rounded-lg ${
+															isInsufficient 
+																? 'bg-red-50 border border-red-200' 
+																: 'bg-gray-50'
+														}`}
+													>
+														<div className="flex items-center gap-2 flex-1">
+															<span className={`text-gray-900 ${isInsufficient ? 'font-medium' : ''}`}>
+																{product?.name || 'Produto não encontrado'}
+															</span>
+															{isInsufficient && (
+																<span className="text-xs text-red-600 flex items-center gap-1">
+																	<AlertTriangle className="w-3 h-3" />
+																	{available}g disponível (necessário: {needed}g)
+																</span>
+															)}
+														</div>
+														<span className={`font-medium ${isInsufficient ? 'text-red-600' : 'text-gray-600'}`}>
+															{needed}g
+														</span>
+													</li>
+												);
+											})}
+										</ul>
 									</div>
 								</div>
-								
-								<div className="space-y-2">
-									<h4 className="text-sm font-medium text-gray-700 mb-2">Ingredientes:</h4>
-									<ul className="space-y-1">
-										{r.ingredients.map((i) => {
-											const product = Array.isArray(products) ? products.find((p) => p.id === i.productId) : null;
-											return (
-												<li key={i.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded-lg">
-													<span className="text-gray-900">
-														{product?.name || 'Produto não encontrado'}
-													</span>
-													<span className="font-medium text-gray-600">{i.amount}g</span>
-												</li>
-											);
-										})}
-									</ul>
-								</div>
-							</div>
-						))}
+							);
+						})}
 					</div>
 
 					{Array.isArray(items) && items.length === 0 && (

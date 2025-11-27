@@ -10,7 +10,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -18,7 +18,7 @@ services:
   backend:
     build: ./backend
     env_file:
-      - ./.env.example
+      - ./backend/.env
     ports:
       - "3000:3000"
     depends_on:
@@ -40,4 +40,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  db_data: {} 
+  db_data: {}

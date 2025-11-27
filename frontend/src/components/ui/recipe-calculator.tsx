@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './button';
 import { Input } from './input';
+import { Select } from './select';
 // import { Alert } from './alert';
 import { LoadingSpinner } from './loading-spinner';
 import { useProductsStore } from '../../store/products';
@@ -82,8 +83,9 @@ export function RecipeCalculator({ className = '' }: RecipeCalculatorProps) {
         // Usar ingredientes da receita selecionada
         const recipe = recipes && recipes.length > 0 ? recipes.find((r: { id: string }) => r.id === selectedRecipe) : null;
         if (recipe && recipe.ingredients) {
-          ingredients = recipe.ingredients.map((ing: { productId: string; amount: number }) => {
-            const product = products && products.length > 0 ? products?.find((p) => p.id === ing.productId) : null;
+          ingredients = recipe.ingredients.map((ing: { productId: string; amount: number; product?: any }) => {
+            // Usar product do ingrediente (vindo do backend) ou buscar na lista como fallback
+            const product = ing.product || (products && products.length > 0 ? products?.find((p) => p.id === ing.productId) : null);
             const unitPrice = product?.pricePerGram || 0; // Usar preço real por grama
             
             // Avisar se o produto não tem preço definido
@@ -200,13 +202,13 @@ Lucro: ${formatCurrency(calculation.profitAmount)}
         {/* Configurações */}
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-900 mb-1">
               Receita Base (opcional)
             </label>
-            <select
+            <Select
               value={selectedRecipe}
               onChange={(e) => setSelectedRecipe(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+              className="w-full"
             >
               <option value="">Receita Customizada</option>
               {recipes.map((recipe: { id: string; name: string }) => (
@@ -214,7 +216,7 @@ Lucro: ${formatCurrency(calculation.profitAmount)}
                   {recipe.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

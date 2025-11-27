@@ -13,6 +13,7 @@ export const validateAuth = [
 
 export const validateProduct = [
 	body('name')
+		.optional()
 		.trim()
 		.isLength({ min: 1, max: 100 })
 		.withMessage('Nome deve ter entre 1 e 100 caracteres'),
