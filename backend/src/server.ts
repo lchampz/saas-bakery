@@ -60,7 +60,11 @@ const corsOptions = {
 		// Bloquear outras origens
 		callback(new Error('Not allowed by CORS'));
 	},
-	credentials: true
+	credentials: true,
+	methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+	allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+	exposedHeaders: ['Content-Range', 'X-Content-Range'],
+	maxAge: 86400 // 24 horas
 };
 
 app.use(cors(corsOptions));

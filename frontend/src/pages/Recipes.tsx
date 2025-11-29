@@ -35,13 +35,16 @@ export default function RecipesPage() {
 	const [stockChecks, setStockChecks] = useState<Record<string, { canPrepare: boolean; insufficientItems: Array<{ productName: string; needed: number; available: number }> }>>({});
 
 	const resolver = zodResolver(recipeSchema) as Resolver<RecipeForm>;
-	const { register, handleSubmit, reset, formState: { errors } } = useForm<RecipeForm>({
+	const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<RecipeForm>({
 		resolver,
 		defaultValues: { 
 			name: '', 
 			ingredients: [{ productId: '', amount: 0 }] 
 		}
 	});
+	
+	// Sincronizar lines com o formulário
+	const watchedIngredients = watch('ingredients');
 
 	useEffect(() => {
 		const loadData = async () => {
@@ -94,30 +97,74 @@ export default function RecipesPage() {
 		}
 	}, [items, products, isLoading]);
 
+	// Sincronizar lines com form quando modal abrir
+	useEffect(() => {
+		if (open && products.length > 0) {
+			if (lines.length === 0) {
+				const initialIngredients = [{ productId: products[0]?.id ?? '', amount: 0.01 }];
+				setValue('ingredients', initialIngredients);
+				setLines(initialIngredients);
+			} else {
+				setValue('ingredients', lines);
+			}
+		}
+	}, [open, products.length]);
+	
+	// Sincronizar lines com watchedIngredients (apenas quando mudar via form)
+	useEffect(() => {
+		if (watchedIngredients && watchedIngredients.length > 0) {
+			const hasChanges = JSON.stringify(watchedIngredients) !== JSON.stringify(lines);
+			if (hasChanges) {
+				setLines(watchedIngredients);
+			}
+		}
+	}, [watchedIngredients]);
+
 	const addLine = () => {
 		if (products.length === 0) {
 			toast.error('Nenhum produto disponível. Adicione produtos primeiro.');
 			return;
 		}
-		setLines((s) => [
-			...s,
-			{ productId: Array.isArray(products) ? (products[0]?.id ?? '') : '', amount: 0 }
-		]);
+		const newIngredient = { productId: products[0]?.id ?? '', amount: 0 };
+		const currentIngredients = watch('ingredients') || [];
+		setValue('ingredients', [...currentIngredients, newIngredient]);
+		setLines((s) => [...s, newIngredient]);
 	};
-	const removeLine = (idx: number) => setLines((s) => s.filter((_, i) => i !== idx));
+	
+	const removeLine = (idx: number) => {
+		const currentIngredients = watch('ingredients') || [];
+		const updated = currentIngredients.filter((_: any, i: number) => i !== idx);
+		setValue('ingredients', updated);
+		setLines(updated);
+	};
+	
 	const changeLine = (idx: number, field: 'productId' | 'amount', value: string | number) => {
-		setLines((s) => s.map((l, i) => i === idx ? { ...l, [field]: field === 'amount' ? Number(value) : value } : l));
+		const currentIngredients = watch('ingredients') || [];
+		const updated = currentIngredients.map((l: any, i: number) => 
+			i === idx ? { ...l, [field]: field === 'amount' ? Number(value) : value } : l
+		);
+		setValue('ingredients', updated);
+		setLines(updated);
 	};
 
 	const onSubmit: SubmitHandler<RecipeForm> = async (data) => {
+		// Filtrar ingredientes válidos
+		const validIngredients = data.ingredients.filter((ing) => ing.productId && ing.amount > 0);
+		
+		if (validIngredients.length === 0) {
+			toast.error('Adicione pelo menos um ingrediente com quantidade maior que zero');
+			return;
+		}
+		
 		try {
-			await create({ name: data.name, ingredients: lines.filter((l) => l.productId) });
-			toast.success('Receita criada');
+			await create({ name: data.name, ingredients: validIngredients });
+			toast.success('Receita criada com sucesso!');
 			reset();
 			setLines([]);
 			setOpen(false);
-		} catch {
-			toast.error('Erro ao criar receita');
+		} catch (error: any) {
+			const errorMessage = error?.response?.data?.message || 'Erro ao criar receita';
+			toast.error(errorMessage);
 		}
 	};
 
@@ -138,7 +185,27 @@ export default function RecipesPage() {
 	};
 
 	const onError = () => {
-		toast.error('Verifique os dados da receita');
+		// Mostrar erros específicos
+		if (errors.name) {
+			toast.error(errors.name.message || 'Nome da receita é obrigatório');
+		} else if (errors.ingredients) {
+			if (typeof errors.ingredients.message === 'string') {
+				toast.error(errors.ingredients.message);
+			} else if (Array.isArray(errors.ingredients)) {
+				const firstError = errors.ingredients.find((err: any) => err);
+				if (firstError?.productId) {
+					toast.error('Selecione um produto para todos os ingredientes');
+				} else if (firstError?.amount) {
+					toast.error('Quantidade deve ser maior que zero');
+				} else {
+					toast.error('Verifique os ingredientes da receita');
+				}
+			} else {
+				toast.error('Adicione pelo menos um ingrediente válido');
+			}
+		} else {
+			toast.error('Verifique os dados da receita');
+		}
 	};
 
 	return (
@@ -163,8 +230,9 @@ export default function RecipesPage() {
 								toast.error('Nenhum produto disponível. Adicione produtos primeiro.');
 								return;
 							}
-							reset();
-							setLines([{ productId: products[0]?.id ?? '', amount: 0 }]);
+							const initialIngredients = [{ productId: products[0]?.id ?? '', amount: 0 }];
+							reset({ name: '', ingredients: initialIngredients });
+							setLines(initialIngredients);
 							setOpen(true);
 						}}
 						className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
@@ -206,23 +274,34 @@ export default function RecipesPage() {
 								<div key={idx} className="flex gap-3 items-center p-3 bg-gray-50 rounded-xl">
 									<div className="flex-1">
 										<Select 
-											value={l.productId} 
+											value={l.productId || ''} 
 											onChange={(e) => changeLine(idx, 'productId', e.target.value)}
-											className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+											className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
+												errors.ingredients?.[idx]?.productId ? 'border-red-500' : 'border-gray-200'
+											}`}
 										>
 											<option value="">Selecione um produto</option>
 											{Array.isArray(products) && products.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
 										</Select>
+										{errors.ingredients?.[idx]?.productId && (
+											<p className="text-red-600 text-xs mt-1">{errors.ingredients[idx]?.productId?.message}</p>
+										)}
 									</div>
 									<div className="w-24">
 										<Input 
 											type="number" 
 											step="any" 
-											value={l.amount} 
+											min="0.01"
+											value={l.amount || ''} 
 											onChange={(e) => changeLine(idx, 'amount', e.target.value)} 
-											placeholder="Qtd (g)"
-											className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+											placeholder="Qtd"
+											className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
+												errors.ingredients?.[idx]?.amount ? 'border-red-500' : 'border-gray-200'
+											}`}
 										/>
+										{errors.ingredients?.[idx]?.amount && (
+											<p className="text-red-600 text-xs mt-1">{errors.ingredients[idx]?.amount?.message}</p>
+										)}
 									</div>
 									<Button 
 										type="button" 
@@ -243,7 +322,9 @@ export default function RecipesPage() {
 						>
 							+ Adicionar Ingrediente
 						</Button>
-						{errors.ingredients && <p className="text-red-600 text-sm mt-2">{errors.ingredients.message}</p>}
+						{errors.ingredients && typeof errors.ingredients.message === 'string' && (
+							<p className="text-red-600 text-sm mt-2">{errors.ingredients.message}</p>
+						)}
 					</div>
 
 					<div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
